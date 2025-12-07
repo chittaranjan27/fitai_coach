@@ -17,14 +17,57 @@ export const ExerciseCard = ({ exercise, index }: ExerciseCardProps) => {
   const generateImage = async () => {
     setIsGenerating(true);
     try {
-      // This will be connected to the AI image generation API
-      // For now, we'll simulate with a placeholder
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      setImageUrl(`https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400&h=300&fit=crop`);
+      // Call server endpoint to generate image. The server will attempt to use
+      // a real image-generation API (Replicate, etc.) when configured.
+      const resp = await fetch('/api/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: exercise.name }),
+      });
+
+      const body = await resp.json();
+      if (resp.ok && body.imageUrl) {
+        setImageUrl(body.imageUrl);
+      } else if (body.fallback) {
+        // Server returned a configured fallback image URL
+        setImageUrl(body.fallback);
+      } else {
+        // Last resort placeholder
+        setImageUrl(`https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400&h=300&fit=crop`);
+      }
     } catch (error) {
       console.error('Failed to generate image:', error);
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const speakInstructions = async () => {
+    const text = `${exercise.name}. ${exercise.instructions}`;
+    try {
+      const resp = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+
+      if (resp.ok) {
+        const { audioUrl } = await resp.json();
+        if (audioUrl) {
+          const audio = new Audio(audioUrl);
+          await audio.play();
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Server TTS failed, falling back to browser TTS', err);
+    }
+
+    // Fallback: use browser SpeechSynthesis
+    if ('speechSynthesis' in window) {
+      const utter = new SpeechSynthesisUtterance(text);
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utter);
     }
   };
 
@@ -87,6 +130,16 @@ export const ExerciseCard = ({ exercise, index }: ExerciseCardProps) => {
           </div>
 
           <p className="text-sm text-muted-foreground">{exercise.instructions}</p>
+          <div className="mt-3 flex gap-2">
+            <Button size="sm" variant="outline" onClick={speakInstructions}>
+              Speak
+            </Button>
+            {!imageUrl && (
+              <Button size="sm" onClick={generateImage} disabled={isGenerating}>
+                {isGenerating ? 'Generating...' : 'Generate Image'}
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
     </motion.div>

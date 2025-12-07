@@ -1,313 +1,241 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { FitnessPlan, WorkoutDay, Meal } from '@/types/fitness';
-import { useFitnessStore } from '@/store/fitnessStore';
+// src/components/PlanDisplay.tsx
+import React from 'react';
+import { motion } from 'framer-motion';
 import { 
-  Dumbbell, Utensils, Lightbulb, Quote, Play, Pause, 
-  Download, RefreshCw, Volume2, VolumeX, Image, Clock,
-  Flame, Target, ChevronDown, ChevronUp
+  Dumbbell, 
+  Apple, 
+  Lightbulb, 
+  Quote,
+  Clock,
+  Flame,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
-import { ExerciseCard } from './ExerciseCard';
-import { MealCard } from './MealCard';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { FitnessPlan, UserProfile } from '@/types/fitness';
+import { useState } from 'react';
 
 interface PlanDisplayProps {
   plan: FitnessPlan;
-  onRegenerate: () => void;
-  onExportPDF: () => void;
-  onSpeak: (text: string, section: 'workout' | 'diet') => void;
-  isSpeaking: boolean;
-  onStopSpeaking: () => void;
+  profile: UserProfile | null;
 }
 
-export const PlanDisplay = ({ 
-  plan, 
-  onRegenerate, 
-  onExportPDF,
-  onSpeak,
-  isSpeaking,
-  onStopSpeaking 
-}: PlanDisplayProps) => {
-  const { userProfile } = useFitnessStore();
-  const [activeTab, setActiveTab] = useState<'workout' | 'diet' | 'tips'>('workout');
-  const [expandedDay, setExpandedDay] = useState<number | null>(0);
+const PlanDisplay: React.FC<PlanDisplayProps> = ({ plan, profile }) => {
+  const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set([0]));
 
-  const tabs = [
-    { id: 'workout', label: 'Workout Plan', icon: Dumbbell },
-    { id: 'diet', label: 'Diet Plan', icon: Utensils },
-    { id: 'tips', label: 'Tips & Motivation', icon: Lightbulb },
-  ];
-
-  const getWorkoutPlanText = () => {
-    return plan.workoutPlan.map(day => 
-      `${day.day}: ${day.focus}. ${day.exercises.map(ex => 
-        `${ex.name}: ${ex.sets} sets of ${ex.reps}`
-      ).join('. ')}`
-    ).join('. ');
-  };
-
-  const getDietPlanText = () => {
-    const meals = plan.dietPlan;
-    return `Breakfast: ${meals.breakfast.name}. 
-      Morning Snack: ${meals.morningSnack.name}. 
-      Lunch: ${meals.lunch.name}. 
-      Evening Snack: ${meals.eveningSnack.name}. 
-      Dinner: ${meals.dinner.name}.`;
+  const toggleDay = (index: number) => {
+    const newExpanded = new Set(expandedDays);
+    if (newExpanded.has(index)) {
+      newExpanded.delete(index);
+    } else {
+      newExpanded.add(index);
+    }
+    setExpandedDays(newExpanded);
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      {/* Header */}
+    <div className="space-y-8">
+      {/* Summary Card */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-center mb-8"
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
       >
-        <h1 className="text-3xl sm:text-4xl font-bold mb-2">
-          Your Personalized Plan
-        </h1>
-        <p className="text-muted-foreground">
-          {userProfile?.name ? `Hey ${userProfile.name}! ` : ''}
-          Here's your AI-generated fitness journey
-        </p>
-      </motion.div>
-
-      {/* Motivational Quote */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="mb-8"
-      >
-        <Card variant="gradient" className="overflow-hidden">
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full gradient-accent flex items-center justify-center shrink-0">
-              <Quote className="w-6 h-6 text-accent-foreground" />
+        <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Quote className="w-5 h-5 text-primary" />
+              Your Journey
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-lg mb-4">{plan.summary}</p>
+            <div className="p-4 bg-muted/50 rounded-lg border-l-4 border-primary">
+              <p className="italic text-muted-foreground">"{plan.motivationalQuote}"</p>
             </div>
-            <p className="text-lg italic font-medium">{plan.motivationalQuote}</p>
           </CardContent>
         </Card>
       </motion.div>
 
-      {/* Action Buttons */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="flex flex-wrap gap-3 justify-center mb-8"
-      >
-        <Button variant="outline" onClick={onRegenerate} className="gap-2">
-          <RefreshCw className="w-4 h-4" />
-          Regenerate Plan
-        </Button>
-        <Button variant="outline" onClick={onExportPDF} className="gap-2">
-          <Download className="w-4 h-4" />
-          Export as PDF
-        </Button>
-        {isSpeaking ? (
-          <Button variant="destructive" onClick={onStopSpeaking} className="gap-2">
-            <VolumeX className="w-4 h-4" />
-            Stop Reading
-          </Button>
-        ) : (
-          <>
-            <Button 
-              variant="secondary" 
-              onClick={() => onSpeak(getWorkoutPlanText(), 'workout')} 
-              className="gap-2"
+      {/* Main Content Tabs */}
+      <Tabs defaultValue="workout" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="workout">
+            <Dumbbell className="w-4 h-4 mr-2" />
+            Workout
+          </TabsTrigger>
+          <TabsTrigger value="diet">
+            <Apple className="w-4 h-4 mr-2" />
+            Diet
+          </TabsTrigger>
+          <TabsTrigger value="tips">
+            <Lightbulb className="w-4 h-4 mr-2" />
+            Tips
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Workout Plan */}
+        <TabsContent value="workout" className="space-y-4 mt-6">
+          {plan.workoutPlan.map((day, index) => (
+            <motion.div
+              key={index}
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: index * 0.1 }}
             >
-              <Volume2 className="w-4 h-4" />
-              Read Workout
-            </Button>
-            <Button 
-              variant="secondary" 
-              onClick={() => onSpeak(getDietPlanText(), 'diet')} 
-              className="gap-2"
+              <Card>
+                <CardHeader 
+                  className="cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => toggleDay(index)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Dumbbell className="w-6 h-6 text-primary" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-xl">{day.day}</CardTitle>
+                        <p className="text-sm text-muted-foreground">{day.focus}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Clock className="w-4 h-4" />
+                        {day.duration}
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Flame className="w-4 h-4 text-orange-500" />
+                        {day.caloriesBurned}
+                      </div>
+                      {expandedDays.has(index) ? (
+                        <ChevronUp className="w-5 h-5" />
+                      ) : (
+                        <ChevronDown className="w-5 h-5" />
+                      )}
+                    </div>
+                  </div>
+                </CardHeader>
+                
+                {expandedDays.has(index) && (
+                  <CardContent className="space-y-4">
+                    {day.exercises.map((exercise, exIndex) => (
+                      <div 
+                        key={exIndex}
+                        className="p-4 rounded-lg bg-muted/30 border border-border"
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <h4 className="font-semibold">{exercise.name}</h4>
+                          <Badge variant="outline">
+                            {exercise.sets} × {exercise.reps}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          {exercise.instructions}
+                        </p>
+                        <div className="flex gap-4 text-xs text-muted-foreground">
+                          <span>Rest: {exercise.restTime}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                )}
+              </Card>
+            </motion.div>
+          ))}
+        </TabsContent>
+
+        {/* Diet Plan */}
+        <TabsContent value="diet" className="space-y-4 mt-6">
+          {Object.entries(plan.dietPlan).map(([mealType, meal], index) => (
+            <motion.div
+              key={mealType}
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: index * 0.1 }}
             >
-              <Volume2 className="w-4 h-4" />
-              Read Diet
-            </Button>
-          </>
-        )}
-      </motion.div>
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Apple className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-xl capitalize">
+                        {mealType.replace(/([A-Z])/g, ' $1').trim()}
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground">{meal.name}</p>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-muted-foreground">{meal.description}</p>
+                  
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="text-center p-3 rounded-lg bg-muted/30">
+                      <div className="text-2xl font-bold text-primary">{meal.calories}</div>
+                      <div className="text-xs text-muted-foreground">Calories</div>
+                    </div>
+                    <div className="text-center p-3 rounded-lg bg-muted/30">
+                      <div className="text-2xl font-bold text-blue-500">{meal.protein}</div>
+                      <div className="text-xs text-muted-foreground">Protein</div>
+                    </div>
+                    <div className="text-center p-3 rounded-lg bg-muted/30">
+                      <div className="text-2xl font-bold text-amber-500">{meal.carbs}</div>
+                      <div className="text-xs text-muted-foreground">Carbs</div>
+                    </div>
+                    <div className="text-center p-3 rounded-lg bg-muted/30">
+                      <div className="text-2xl font-bold text-green-500">{meal.fats}</div>
+                      <div className="text-xs text-muted-foreground">Fats</div>
+                    </div>
+                  </div>
 
-      {/* Tabs */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="flex justify-center gap-2 mb-8"
-      >
-        {tabs.map((tab) => (
-          <Button
-            key={tab.id}
-            variant={activeTab === tab.id ? 'gradient' : 'ghost'}
-            onClick={() => setActiveTab(tab.id as typeof activeTab)}
-            className="gap-2"
-          >
-            <tab.icon className="w-4 h-4" />
-            <span className="hidden sm:inline">{tab.label}</span>
-          </Button>
-        ))}
-      </motion.div>
+                  <div>
+                    <h4 className="font-semibold mb-2">Ingredients:</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {meal.ingredients.map((ingredient, i) => (
+                        <Badge key={i} variant="secondary">
+                          {ingredient}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </TabsContent>
 
-      {/* Content */}
-      <AnimatePresence mode="wait">
-        {activeTab === 'workout' && (
-          <motion.div
-            key="workout"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="space-y-4"
-          >
-            {plan.workoutPlan.map((day, index) => (
-              <WorkoutDayCard
-                key={index}
-                day={day}
-                isExpanded={expandedDay === index}
-                onToggle={() => setExpandedDay(expandedDay === index ? null : index)}
-                index={index}
-              />
-            ))}
-          </motion.div>
-        )}
-
-        {activeTab === 'diet' && (
-          <motion.div
-            key="diet"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"
-          >
-            <MealCard meal={plan.dietPlan.breakfast} mealType="Breakfast" icon="🌅" />
-            <MealCard meal={plan.dietPlan.morningSnack} mealType="Morning Snack" icon="🍎" />
-            <MealCard meal={plan.dietPlan.lunch} mealType="Lunch" icon="☀️" />
-            <MealCard meal={plan.dietPlan.eveningSnack} mealType="Evening Snack" icon="🥜" />
-            <MealCard meal={plan.dietPlan.dinner} mealType="Dinner" icon="🌙" />
-          </motion.div>
-        )}
-
-        {activeTab === 'tips' && (
-          <motion.div
-            key="tips"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="space-y-4"
-          >
-            <Card variant="glass">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Lightbulb className="w-5 h-5 text-accent" />
-                  AI Tips & Recommendations
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-3">
-                  {plan.tips.map((tip, index) => (
-                    <motion.li
-                      key={index}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="flex items-start gap-3"
-                    >
-                      <span className="w-6 h-6 rounded-full gradient-primary flex items-center justify-center text-sm text-primary-foreground shrink-0">
-                        {index + 1}
-                      </span>
-                      <p className="text-muted-foreground">{tip}</p>
-                    </motion.li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-
-            <Card variant="glass">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="w-5 h-5 text-primary" />
-                  Plan Summary
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">{plan.summary}</p>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        {/* Tips */}
+        <TabsContent value="tips" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Lightbulb className="w-5 h-5 text-primary" />
+                Personalized Tips
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {plan.tips.map((tip, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ x: -20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="flex gap-4 p-4 rounded-lg bg-muted/30 border border-border"
+                >
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">
+                    {index + 1}
+                  </div>
+                  <p className="flex-1">{tip}</p>
+                </motion.div>
+              ))}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
 
-interface WorkoutDayCardProps {
-  day: WorkoutDay;
-  isExpanded: boolean;
-  onToggle: () => void;
-  index: number;
-}
-
-const WorkoutDayCard = ({ day, isExpanded, onToggle, index }: WorkoutDayCardProps) => {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05 }}
-    >
-      <Card variant="elevated" className="overflow-hidden">
-        <button
-          onClick={onToggle}
-          className="w-full p-6 flex items-center justify-between text-left hover:bg-muted/50 transition-colors"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center">
-              <Dumbbell className="w-6 h-6 text-primary-foreground" />
-            </div>
-            <div>
-              <h3 className="font-bold text-lg">{day.day}</h3>
-              <p className="text-sm text-muted-foreground">{day.focus}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="hidden sm:flex items-center gap-4 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <Clock className="w-4 h-4" />
-                {day.duration}
-              </span>
-              <span className="flex items-center gap-1">
-                <Flame className="w-4 h-4 text-accent" />
-                {day.caloriesBurned}
-              </span>
-            </div>
-            {isExpanded ? (
-              <ChevronUp className="w-5 h-5 text-muted-foreground" />
-            ) : (
-              <ChevronDown className="w-5 h-5 text-muted-foreground" />
-            )}
-          </div>
-        </button>
-
-        <AnimatePresence>
-          {isExpanded && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="overflow-hidden"
-            >
-              <div className="p-6 pt-0 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {day.exercises.map((exercise, idx) => (
-                  <ExerciseCard key={idx} exercise={exercise} index={idx} />
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </Card>
-    </motion.div>
-  );
-};
+export default PlanDisplay;

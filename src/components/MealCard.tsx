@@ -18,13 +18,51 @@ export const MealCard = ({ meal, mealType, icon }: MealCardProps) => {
   const generateImage = async () => {
     setIsGenerating(true);
     try {
-      // This will be connected to the AI image generation API
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      setImageUrl(`https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop`);
+      const resp = await fetch('/api/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: meal.name }),
+      });
+
+      const body = await resp.json();
+      if (resp.ok && body.imageUrl) {
+        setImageUrl(body.imageUrl);
+      } else if (body.fallback) {
+        setImageUrl(body.fallback);
+      } else {
+        setImageUrl(`https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop`);
+      }
     } catch (error) {
       console.error('Failed to generate image:', error);
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const speakMeal = async () => {
+    const text = `${meal.name}. ${meal.description}`;
+    try {
+      const resp = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      if (resp.ok) {
+        const { audioUrl } = await resp.json();
+        if (audioUrl) {
+          const audio = new Audio(audioUrl);
+          await audio.play();
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Server TTS failed, falling back to browser TTS', err);
+    }
+
+    if ('speechSynthesis' in window) {
+      const utter = new SpeechSynthesisUtterance(text);
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utter);
     }
   };
 
@@ -112,6 +150,16 @@ export const MealCard = ({ meal, mealType, icon }: MealCardProps) => {
                 </span>
               ))}
             </div>
+          </div>
+          <div className="mt-4 flex gap-2">
+            <Button size="sm" variant="outline" onClick={speakMeal}>
+              Speak
+            </Button>
+            {!imageUrl && (
+              <Button size="sm" onClick={generateImage} disabled={isGenerating}>
+                {isGenerating ? 'Generating...' : 'Generate Image'}
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
